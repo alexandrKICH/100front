@@ -59,7 +59,6 @@ Preferred communication style: Simple, everyday language.
 
 ### Communication Features
 - **Messaging**: Real-time text messaging, supporting professional conversations.
-- **Voice/Video Calls**: WebRTC-based calling with call management.
 - **Group Chats**: Multi-user conversations with administrative controls.
 - **File Sharing**: Support for various file types (images, documents, audio, video).
 - **Contact System**: Friend requests and contact management.
@@ -72,7 +71,6 @@ Preferred communication style: Simple, everyday language.
 - **Local Storage**: Used for user preferences, settings, and chat persistence (e.g., selected chat, folder data)
 
 ### Media Handling
-- **Recording**: Browser-based audio and video recording.
 - **File Upload**: Drag-and-drop uploads with validation.
 - **Image Processing**: Avatar resizing.
 
@@ -92,7 +90,6 @@ Preferred communication style: Simple, everyday language.
 - **Lucide React**: Icon library.
 - **Class Variance Authority**: For managing component variants.
 - **Supabase**: Backend-as-a-Service, providing PostgreSQL database, real-time features, and file storage.
-- **Web APIs**: MediaDevices API, FileReader API, and WebRTC for media and real-time communication.
 - **React Hook Form**: For form handling and validation.
 - **Date-fns**: For date manipulation.
 - **Embla Carousel**: Carousel component.
@@ -136,3 +133,29 @@ Preferred communication style: Simple, everyday language.
   - The `status` field now exclusively stores user's "About me" text
   - Online/offline status tracked via separate `is_online` boolean field
   - "About me" text now persists correctly across login, logout, and page refresh
+
+### October 1, 2025 - Critical Performance Optimizations and Call Feature Removal
+- **Webpack Caching Fix**: Resolved slow build times and crashes
+  - Disabled webpack caching in next.config.mjs to eliminate cache invalidation errors
+  - Fixed "Invalid URL" errors caused by Supabase credential issues
+  - Application now compiles cleanly in ~17 seconds instead of crashing
+- **Message Loading Optimization**: Dramatically improved chat switching speed
+  - Implemented in-memory message cache (messagesCache) for instant chat switching
+  - Added batch last message loading (messageService.getBatchLastMessages) to load all last messages at once
+  - Background fetching prevents UI blocking during message loads
+  - Reduced database queries from multiple per-chat to single batch query
+- **Real-time Subscription Optimization**: Eliminated redundant database queries
+  - Streamlined Supabase real-time subscription to use single global listener
+  - Uses selectedChatRef to avoid stale closures and redundant re-subscriptions
+  - Removed 2 extra Supabase queries per incoming message (contact lookup and last message fetch)
+  - Messages now update instantly without additional database round-trips
+- **Session Persistence Fix**: Resolved logout on page refresh issue
+  - Implemented workaround for swapped Replit environment variables (NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY are mislabeled in secrets)
+  - Code in frontend/lib/supabase.ts swaps them back to correct values
+  - Users now stay logged in after page refresh
+- **Call Feature Removal**: Completely removed voice/video call functionality as requested
+  - Removed all call UI components (buttons, modals, notifications)
+  - Removed call state management and event handlers from main app
+  - Removed call-related real-time subscriptions
+  - Cleaned up unused call imports and dependencies
+  - Note: Backend call routes and unused frontend call files remain but are not active in the application
