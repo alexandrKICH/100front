@@ -4,7 +4,7 @@ import { useState } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { MessageCircle, Phone, Video, UserMinus, UserPlus } from "lucide-react"
+import { MessageCircle, UserMinus, UserPlus } from "lucide-react"
 
 interface Contact {
   id: string
@@ -33,7 +33,6 @@ interface UserProfileModalProps {
   onAddContact: (user: Contact) => void
   onRemoveContact: (userId: string) => void
   onStartChat: (userId: string) => void
-  onStartCall: (user: Contact, type: "voice" | "video") => void
 }
 
 export function UserProfileModal({
@@ -45,7 +44,6 @@ export function UserProfileModal({
   onAddContact,
   onRemoveContact,
   onStartChat,
-  onStartCall,
 }: UserProfileModalProps) {
   const [isLoading, setIsLoading] = useState(false)
 
@@ -125,34 +123,15 @@ export function UserProfileModal({
 
           {/* Action Buttons */}
           <div className="space-y-2 pt-2">
-            {/* Communication buttons */}
-            <div className="grid grid-cols-3 gap-2">
-              <Button
-                onClick={() => onStartChat(user.id)}
-                variant="outline"
-                className="bg-blue-500 text-white hover:bg-blue-600 border-0"
-              >
-                <MessageCircle className="h-4 w-4" />
-              </Button>
-
-              <Button
-                onClick={() => onStartCall(user, "voice")}
-                variant="outline"
-                className="bg-green-500 text-white hover:bg-green-600 border-0"
-                disabled={!user.isOnline}
-              >
-                <Phone className="h-4 w-4" />
-              </Button>
-
-              <Button
-                onClick={() => onStartCall(user, "video")}
-                variant="outline"
-                className="bg-blue-600 text-white hover:bg-blue-700 border-0"
-                disabled={!user.isOnline}
-              >
-                <Video className="h-4 w-4" />
-              </Button>
-            </div>
+            {/* Communication button */}
+            <Button
+              onClick={() => onStartChat(user.id)}
+              variant="outline"
+              className="w-full bg-blue-500 text-white hover:bg-blue-600 border-0"
+            >
+              <MessageCircle className="h-4 w-4 mr-2" />
+              Написать сообщение
+            </Button>
 
             {/* Contact management */}
             {isContact ? (

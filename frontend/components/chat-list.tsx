@@ -4,7 +4,7 @@ import { useState } from "react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Phone, Video, User } from "lucide-react"
+import { User } from "lucide-react"
 
 interface Contact {
   id: string
@@ -30,7 +30,6 @@ interface ChatListProps {
   user: any
   lastMessages: Record<string, { text: string; time: Date; type: string }>
   unreadCounts: Record<string, number>
-  onStartCall: (contact: Contact, type: "voice" | "video") => void
   onUserProfile: (contact: Contact) => void
   folders: ChatFolder[]
   selectedFolder: ChatFolder | null
@@ -44,7 +43,6 @@ export function ChatList({
   user,
   lastMessages,
   unreadCounts,
-  onStartCall,
   onUserProfile,
   folders,
   selectedFolder,
@@ -198,30 +196,6 @@ export function ChatList({
                 title="Профиль пользователя"
               >
                 <User className="h-4 w-4" />
-              </Button>
-              <Button
-                size="icon"
-                variant="ghost"
-                className="w-8 h-8 text-gray-700 hover:bg-gray-200"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onStartCall(chat.contact, "voice")
-                }}
-                title="Голосовой звонок"
-              >
-                <Phone className="h-4 w-4" />
-              </Button>
-              <Button
-                size="icon"
-                variant="ghost"
-                className="w-8 h-8 text-gray-700 hover:bg-gray-200"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onStartCall(chat.contact, "video")
-                }}
-                title="Видеозвонок"
-              >
-                <Video className="h-4 w-4" />
               </Button>
             </div>
           </div>

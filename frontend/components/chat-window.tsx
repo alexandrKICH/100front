@@ -9,7 +9,7 @@ import { VoiceRecorder } from "@/components/voice-recorder"
 import { VideoRecorder } from "@/components/video-recorder"
 import { FileUpload } from "@/components/file-upload"
 import { ChatMenu } from "@/components/chat-menu"
-import { Send, Paperclip, Mic, Video, Phone, Users, Star, ArrowLeft } from "lucide-react"
+import { Send, Paperclip, Mic, Video, Users, Star, ArrowLeft } from "lucide-react"
 import { messageService, fileService } from "@/lib/database"
 
 interface Message {
@@ -33,7 +33,6 @@ interface ChatWindowProps {
   contacts: any[]
   messages: Message[]
   onSendMessage: (message: Message) => void
-  onStartCall: (contact: any, type: "voice" | "video") => void
   onLoadMessages: () => void
   onMenuAction: (action: string, data?: any) => void
   onBack?: () => void
@@ -46,7 +45,6 @@ export function ChatWindow({
   contacts,
   messages,
   onSendMessage,
-  onStartCall,
   onLoadMessages,
   onMenuAction,
   onBack,
@@ -308,32 +306,6 @@ export function ChatWindow({
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button
-              size="icon"
-              variant="ghost"
-              className="text-gray-700 hover:bg-gray-100"
-              onClick={() => {
-                const contact = contacts.find((c) => c.id === chatId)
-                if (contact) onStartCall(contact, "voice")
-              }}
-              title="Голосовой звонок"
-              disabled={!currentContact?.isOnline}
-            >
-              <Phone className="h-5 w-5" />
-            </Button>
-            <Button
-              size="icon"
-              variant="ghost"
-              className="text-gray-700 hover:bg-gray-100"
-              onClick={() => {
-                const contact = contacts.find((c) => c.id === chatId)
-                if (contact) onStartCall(contact, "video")
-              }}
-              title="Видеозвонок"
-              disabled={!currentContact?.isOnline}
-            >
-              <Video className="h-5 w-5" />
-            </Button>
             <ChatMenu chatId={chatId} chatType={headerInfo.chatType} onAction={onMenuAction} />
           </div>
         </div>

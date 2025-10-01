@@ -6,8 +6,6 @@ import { ChatWindow } from "@/components/chat-window"
 import { ProfileModal } from "@/components/profile-modal"
 import { AuthModal } from "@/components/auth-modal"
 import { ContactSearch } from "@/components/contact-search"
-import { CallModal } from "@/components/call-modal"
-import { CallNotification } from "@/components/call-notification"
 import { Sidebar } from "@/components/sidebar"
 import { PermissionsModal } from "@/components/permissions-modal"
 import { UserProfileModal } from "@/components/user-profile-modal"
@@ -15,8 +13,7 @@ import { SettingsModal } from "@/components/settings-modal"
 import { FoldersModal } from "@/components/folders-modal"
 import { Button } from "@/components/ui/button"
 import { Search, Settings, Folder, Star, LogOut } from "lucide-react"
-import { authService, contactService, messageService, callService, folderService } from "@/lib/database"
-import { realtimeService } from "@/lib/realtime-service"
+import { authService, contactService, messageService, folderService } from "@/lib/database"
 import { supabase } from "@/lib/supabase"
 
 interface User {
@@ -68,14 +65,6 @@ export default function Home() {
   const [showProfile, setShowProfile] = useState(false)
   const [showSearch, setShowSearch] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
-  const [showCall, setShowCall] = useState(false)
-  const [callType, setCallType] = useState<"voice" | "video">("voice")
-  const [callContact, setCallContact] = useState<Contact | null>(null)
-  const [currentCallId, setCurrentCallId] = useState<string | null>(null)
-  const [showIncomingCall, setShowIncomingCall] = useState(false)
-  const [incomingCaller, setIncomingCaller] = useState<Contact | null>(null)
-  const [incomingCallType, setIncomingCallType] = useState<"voice" | "video">("voice")
-  const [incomingCallId, setIncomingCallId] = useState<string | null>(null)
   const [folders, setFolders] = useState<ChatFolder[]>([])
   const [showFoldersModal, setShowFoldersModal] = useState(false)
   const [selectedFolder, setSelectedFolder] = useState<ChatFolder | null>(null)
@@ -208,77 +197,6 @@ export default function Home() {
     restoreSession()
   }, [])
 
-  // Подписываемся на реальные уведомления о звонках
-  useEffect(() => {
-    if (!user.id) return
-
-    console.log("📡 Subscribing to real-time notifications for user:", user.id)
-
-    const unsubscribe = realtimeService.subscribe(user.id, (notification) => {
-      console.log("📡 Received notification:", notification)
-
-      switch (notification.type) {
-        case "incoming_call":
-          console.log("📞 INCOMING CALL from:", notification.callerInfo.login)
-
-          // Создаем объект звонящего
-          const caller: Contact = {
-            id: notification.callerId,
-            login: notification.callerInfo.login,
-            name: notification.callerInfo.name,
-            avatar: notification.callerInfo.avatar,
-            isOnline: true,
-          }
-
-          setIncomingCaller(caller)
-          setIncomingCallType(notification.callType)
-          setIncomingCallId(notification.id)
-          setShowIncomingCall(true)
-
-          // Воспроизводим звук звонка
-          try {
-            const audio = new Audio(
-              "data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIG2m98OScTgwOUarm7blmGgU7k9n1unEiBC13yO/eizEIHWq+8+OWT",
-            )
-            audio.volume = 0.5
-            audio.play().catch(() => console.log("Cannot play ringtone"))
-          } catch (e) {
-            console.log("Ringtone error:", e)
-          }
-          break
-
-        case "call_accepted":
-          console.log("✅ CALL ACCEPTED by receiver")
-          setShowCall(true)
-          setShowIncomingCall(false)
-          break
-
-        case "call_declined":
-          console.log("❌ CALL DECLINED by receiver")
-          setShowCall(false)
-          setCurrentCallId(null)
-          alert("Звонок отклонен")
-          break
-
-        case "call_ended":
-          console.log("📞 CALL ENDED")
-          setShowCall(false)
-          setShowIncomingCall(false)
-          setCurrentCallId(null)
-          setIncomingCallId(null)
-          break
-      }
-    })
-
-    return unsubscribe
-  }, [user.id])
-
-  // Запрашиваем разрешение на уведомления
-  useEffect(() => {
-    if (isAuthenticated && Notification.permission === "default") {
-      Notification.requestPermission()
-    }
-  }, [isAuthenticated])
 
   const loadLastMessages = async (contactsList: Contact[], userId: string) => {
     try {
@@ -541,115 +459,6 @@ export default function Home() {
     ? contacts.filter((c) => selectedFolder.chatIds.includes(c.id))
     : contacts
 
-  const handleStartCall = async (contact: Contact, type: "voice" | "video") => {
-    if (!contact.isOnline) {
-      alert("Пользователь не в сети. Звонок невозможен.")
-      return
-    }
-
-    try {
-      console.log("📞 STARTING CALL to:", contact.login, "Type:", type)
-
-      // Используем реальный сервис уведомлений
-      const callId = realtimeService.initiateCall(user.id, contact.id, type, {
-        login: user.login,
-        name: user.name,
-        avatar: user.avatar,
-      })
-
-      // Также пытаемся сохранить в базу данных
-      try {
-        await callService.initiateCall(user.id, contact.id, type)
-      } catch (dbError) {
-        console.warn("⚠️ Failed to save call to database:", dbError)
-      }
-
-      setCallContact(contact)
-      setCallType(type)
-      setCurrentCallId(callId)
-      setShowCall(true)
-
-      console.log("📞 Call initiated successfully:", callId)
-    } catch (error) {
-      console.error("Error starting call:", error)
-      alert("Ошибка при инициации звонка")
-    }
-  }
-
-  const handleAcceptIncomingCall = async () => {
-    if (incomingCallId && incomingCaller) {
-      try {
-        console.log("✅ ACCEPTING CALL:", incomingCallId)
-
-        // Принимаем звонок через реальный сервис
-        realtimeService.acceptCall(incomingCallId)
-
-        // Также пытаемся обновить в базе данных
-        try {
-          await callService.acceptCall(incomingCallId)
-        } catch (dbError) {
-          console.warn("⚠️ Failed to update call status in database:", dbError)
-        }
-
-        setShowIncomingCall(false)
-        setCallContact(incomingCaller)
-        setCallType(incomingCallType)
-        setCurrentCallId(incomingCallId)
-        setShowCall(true)
-        setIncomingCallId(null)
-      } catch (error) {
-        console.error("Error accepting call:", error)
-      }
-    }
-  }
-
-  const handleDeclineIncomingCall = async () => {
-    if (incomingCallId) {
-      try {
-        console.log("❌ DECLINING CALL:", incomingCallId)
-
-        // Отклоняем звонок через реальный сервис
-        realtimeService.declineCall(incomingCallId)
-
-        // Также пытаемся обновить в базе данных
-        try {
-          await callService.declineCall(incomingCallId)
-        } catch (dbError) {
-          console.warn("⚠️ Failed to update call status in database:", dbError)
-        }
-
-        setShowIncomingCall(false)
-        setIncomingCaller(null)
-        setIncomingCallId(null)
-      } catch (error) {
-        console.error("Error declining call:", error)
-      }
-    }
-  }
-
-  const handleEndCall = async () => {
-    if (currentCallId) {
-      try {
-        console.log("📞 ENDING CALL:", currentCallId)
-
-        // Завершаем звонок через реальный сервис
-        realtimeService.endCall(currentCallId)
-
-        // Также пытаемся обновить в базе данных
-        try {
-          await callService.endCall(currentCallId)
-        } catch (dbError) {
-          console.warn("⚠️ Failed to update call status in database:", dbError)
-        }
-
-        setShowCall(false)
-        setCurrentCallId(null)
-      } catch (error) {
-        console.error("Error ending call:", error)
-      }
-    }
-  }
-
   const handleUserProfile = (contact: Contact) => {
     setSelectedUser(contact)
     setShowUserProfile(true)
@@ -880,55 +689,28 @@ export default function Home() {
           table: "messages",
         },
         async (payload: any) => {
-          console.log("📨 New message received via Realtime:", payload)
+          console.log("📨 New message received via Realtime:", payload.new)
 
-          // Получаем полные данные о сообщении с информацией об отправителе
-          const { data: messageData, error } = await supabase
-            .from("messages")
-            .select(
-              `
-              *,
-              sender:users!messages_sender_id_fkey(id, login, name, avatar),
-              chat:chats!inner(id, type, group_id)
-            `
-            )
-            .eq("id", payload.new.id)
-            .single()
-
-          if (error || !messageData) {
-            console.error("❌ Error fetching message details:", error)
-            return
-          }
-
-          console.log("📬 Message data received:", messageData)
-
-          // Определяем ID чата для UI
-          let uiChatId: string = ""
+          const msgData = payload.new
+          const senderId = msgData.sender_id
           
-          // Если это групповой чат
-          if (messageData.chat.group_id) {
-            uiChatId = messageData.chat.group_id
-          } else {
-            // Для личных чатов - используем ID отправителя (если это не я) или получателя
-            // Если я отправитель - показываем чат с получателем, иначе - с отправителем
-            if (messageData.sender_id === user.id) {
-              // Нужно определить получателя - используем chat_id напрямую
-              // или ищем другого участника чата
-              const { data: participants } = await supabase
-                .from("chat_participants")
-                .select("user_id")
-                .eq("chat_id", messageData.chat_id)
-                .neq("user_id", user.id)
-                .limit(1)
-                .single()
-              
-              if (participants) {
-                uiChatId = participants.user_id
-              }
-            } else {
-              // Если мне прислали сообщение - показываем чат с отправителем
-              uiChatId = messageData.sender_id
+          let uiChatId: string = ""
+          let senderInfo = null
+          
+          if (senderId === user.id) {
+            const contact = contacts.find(c => messagesCache.current[c.id]?.some(m => m.chatId === c.id))
+            if (!contact) {
+              console.log("⏭️ Could not determine receiver, skipping")
+              return
             }
+            uiChatId = contact.id
+            senderInfo = { name: user.name, login: user.login, avatar: user.avatar }
+          } else {
+            uiChatId = senderId
+            const contact = contacts.find(c => c.id === senderId)
+            senderInfo = contact ? 
+              { name: contact.name, login: contact.login, avatar: contact.avatar } :
+              { name: "Unknown", login: "unknown", avatar: "/placeholder.svg?height=32&width=32" }
           }
 
           if (!uiChatId) {
@@ -936,54 +718,45 @@ export default function Home() {
             return
           }
 
-          // Используем ref для получения актуального selectedChat
           const currentSelectedChat = selectedChatRef.current
-          console.log("📬 Message for chat:", uiChatId, "Current selected chat:", currentSelectedChat)
 
-          // Обновляем последнее сообщение в списке чатов
           setLastMessages((prevLastMessages) => ({
             ...prevLastMessages,
             [uiChatId]: {
-              text: messageData.content || "",
-              time: new Date(messageData.created_at),
-              type: messageData.message_type,
+              text: msgData.content || "",
+              time: new Date(msgData.created_at),
+              type: msgData.message_type,
             },
           }))
 
-          // Если чат не открыт и сообщение не от меня - увеличиваем счетчик и показываем уведомление
-          if (currentSelectedChat !== uiChatId && messageData.sender_id !== user.id) {
+          if (currentSelectedChat !== uiChatId && senderId !== user.id) {
             setUnreadCounts((prev) => ({
               ...prev,
               [uiChatId]: (prev[uiChatId] || 0) + 1,
             }))
 
-            // Показываем браузерное уведомление
-            const senderName = messageData.sender?.name || messageData.sender?.login || "Неизвестный"
-            const messageText = messageData.content || "Новое сообщение"
-            const messagePreview = messageText.length > 50 ? messageText.slice(0, 50) + "..." : messageText
+            const messagePreview = (msgData.content || "Новое сообщение").length > 50 ? 
+              (msgData.content || "Новое сообщение").slice(0, 50) + "..." : 
+              (msgData.content || "Новое сообщение")
             
             showNotification(
-              `💬 ${senderName}`,
+              `💬 ${senderInfo.name}`,
               messagePreview,
-              messageData.sender?.avatar
+              senderInfo.avatar
             )
-            
-            console.log("🔔 Notification shown and unread count increased for chat:", uiChatId)
           }
 
-          // Создаём объект сообщения
           const newMessage = {
-            id: messageData.id,
-            text: messageData.content || "",
-            timestamp: new Date(messageData.created_at),
-            isOwn: messageData.sender_id === user.id,
-            sender: messageData.sender?.name || "Unknown",
-            senderAvatar: messageData.sender?.avatar || "/placeholder.svg?height=32&width=32",
-            senderLogin: messageData.sender?.login || "unknown",
+            id: msgData.id,
+            text: msgData.content || "",
+            timestamp: new Date(msgData.created_at),
+            isOwn: senderId === user.id,
+            sender: senderInfo.name,
+            senderAvatar: senderInfo.avatar,
+            senderLogin: senderInfo.login,
             chatId: uiChatId,
           }
 
-          // ОБНОВЛЯЕМ КЭШ для этого чата
           messagesCache.current[uiChatId] = [
             ...(messagesCache.current[uiChatId] || []),
             newMessage
@@ -991,30 +764,24 @@ export default function Home() {
             index === self.findIndex((m) => m.id === msg.id)
           )
 
-          // Если это текущий открытый чат - добавляем сообщение в список
           if (currentSelectedChat === uiChatId) {
             setMessages((prevMessages) => {
               if (prevMessages.find((m) => m.id === newMessage.id)) {
-                console.log("⏭️ Message already exists in current chat, skipping")
                 return prevMessages
               }
-              console.log("✅ Adding new message to current chat UI:", newMessage.text)
               return [...prevMessages, newMessage]
             })
-          } else {
-            console.log("📝 Updated last message and cache for different chat, not adding to UI")
           }
         }
       )
       .subscribe((status: string) => {
-        console.log("📡 Global subscription status:", status)
+        console.log("📡 Subscription status:", status)
       })
 
     return () => {
-      console.log("🔌 Unsubscribing from global real-time messages")
       supabase.removeChannel(channel)
     }
-  }, [user.id])
+  }, [user.id, contacts])
 
   if (!isAuthenticated) {
     return <AuthModal isOpen={showAuth} onLogin={handleLogin} />
@@ -1044,7 +811,6 @@ export default function Home() {
             user={user}
             lastMessages={lastMessages}
             unreadCounts={unreadCounts}
-            onStartCall={handleStartCall}
             onUserProfile={handleUserProfile}
             folders={folders}
             selectedFolder={selectedFolder}
@@ -1061,7 +827,6 @@ export default function Home() {
               contacts={contacts}
               messages={messages.filter((m) => m.chatId === selectedChat)}
               onSendMessage={handleSendMessage}
-              onStartCall={handleStartCall}
               onLoadMessages={loadMessages}
               onMenuAction={handleChatMenuAction}
               onBack={() => setSelectedChat(null)}
@@ -1105,17 +870,6 @@ export default function Home() {
           )}
         </div>
       </div>
-
-      {/* Уведомление о входящем звонке */}
-      {showIncomingCall && incomingCaller && (
-        <CallNotification
-          isVisible={showIncomingCall}
-          caller={incomingCaller}
-          type={incomingCallType}
-          onAccept={handleAcceptIncomingCall}
-          onDecline={handleDeclineIncomingCall}
-        />
-      )}
 
       <PermissionsModal isOpen={showPermissions} onComplete={handlePermissionsComplete} />
 
@@ -1181,19 +935,6 @@ export default function Home() {
         onSelectFolder={handleSelectFolder}
       />
 
-      {showCall && callContact && (
-        <CallModal
-          isOpen={showCall}
-          onClose={() => {
-            setShowCall(false)
-            handleEndCall()
-          }}
-          contact={callContact}
-          type={callType}
-          currentUser={user}
-        />
-      )}
-
       {selectedUser && (
         <UserProfileModal
           isOpen={showUserProfile}
@@ -1204,7 +945,6 @@ export default function Home() {
           onAddContact={handleAddContact}
           onRemoveContact={handleRemoveContact}
           onStartChat={handleStartChatFromProfile}
-          onStartCall={handleStartCall}
         />
       )}
 
