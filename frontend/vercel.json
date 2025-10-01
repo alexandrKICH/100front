@@ -1,0 +1,11 @@
+
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": ".next",
+  "framework": "nextjs",
+  "env": {
+    "NEXT_PUBLIC_SUPABASE_URL": "https://diaksuzdtmbwnnioyztz.supabase.co",
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRpYWtzdXpkdG1id25uaW95enR6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkxNTk5NTgsImV4cCI6MjA3NDczNTk1OH0.KXW3HsrJoaLMIR0rFeowm2CxsMgsgY-IKbbOSZLSQBc",
+    "NEXT_PUBLIC_API_URL": "https://one00back.onrender.com"
+  }
+}
